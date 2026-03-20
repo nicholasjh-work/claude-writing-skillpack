@@ -76,7 +76,18 @@ def main():
     )
     parser.add_argument("--total", type=int, default=38,
                         help="Total number of patterns to check (default: 38)")
+    parser.add_argument("--fixture", metavar="PATH", action="append",
+                        help="Path to a fixtures file (validated to exist; may be specified multiple times)")
+    parser.add_argument("--threshold", type=float, default=1.0,
+                        help="Minimum coverage fraction required to pass (default: 1.0)")
     args = parser.parse_args()
+
+    if args.fixture:
+        for f in args.fixture:
+            p = Path(f)
+            if not p.exists():
+                print(f"ERROR: fixture file not found: {f}", file=sys.stderr)
+                sys.exit(2)
 
     total = args.total
     print(f"Checking P1-P{total} coverage across scholar-editor skill tree...\n")
@@ -95,13 +106,21 @@ def main():
     print(f"Coverage:         {len(covered)}/{total} ({len(covered)/total:.0%})")
     print(f"{'='*60}")
 
-    if not missing:
+    coverage_frac = len(covered) / total
+    threshold = args.threshold
+
+    if coverage_frac >= threshold and not missing:
         print(f"PASS -- all {total} patterns covered.")
         sys.exit(0)
+    elif coverage_frac >= threshold:
+        print(f"PASS -- coverage {coverage_frac:.0%} meets threshold {threshold:.0%}.")
+        sys.exit(0)
     else:
-        print(f"\nFAIL -- {len(missing)} pattern(s) not found: {missing}", file=sys.stderr)
-        print(f"Add P{missing[0]}-P{missing[-1]} to skills/scholar-editor/ or shared/scholar-editor/",
-              file=sys.stderr)
+        print(f"\nFAIL -- coverage {coverage_frac:.0%} below threshold {threshold:.0%}.", file=sys.stderr)
+        print(f"Missing pattern(s): {missing}", file=sys.stderr)
+        if missing:
+            print(f"Add P{missing[0]}-P{missing[-1]} to skills/scholar-editor/ or shared/scholar-editor/",
+                  file=sys.stderr)
         sys.exit(1)
 
 
